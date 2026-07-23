@@ -11,6 +11,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.sudoku.backend.dto.SolveRequest;
 import com.sudoku.backend.dto.SolveResponse;
 import com.sudoku.backend.dto.SolveStep;
+import com.sudoku.backend.dto.ValidationResult;
+import com.sudoku.backend.exception.InvalidSudokuException;
+import com.sudoku.backend.service.SudokuValidator;
 
 
 @RestController
@@ -18,10 +21,26 @@ import com.sudoku.backend.dto.SolveStep;
 @CrossOrigin
 public class SudokuController {
 
+    private final SudokuValidator validator;
+
+
+    public SudokuController(SudokuValidator validator) {
+        this.validator = validator;
+    }
 
     @PostMapping("/solve")
     public SolveResponse solve(@RequestBody SolveRequest request) {
 
+        ValidationResult result =
+        validator.validate(request.getGrid());
+
+
+        if (!result.isValid()) {
+
+            throw new InvalidSudokuException(
+                result.getMessage()
+            );
+        }
 
         int[][] testGrid = {
                 {5,3,4,6,7,8,9,1,2},
