@@ -33,6 +33,40 @@ function App() {
     );
   };
 
+  const solve = async () => {
+    const response = await fetch("http://localhost:8080/api/sudoku/solve", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            grid
+        }),
+    });
+
+    const data = await response.json();
+
+    playSteps(data.steps);
+  };
+
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const playSteps = async (steps) => {
+
+      let currentGrid = grid.map(row => [...row]);
+
+      for (const step of steps) {
+
+          currentGrid[step.row][step.col] = step.value;
+
+          setGrid(currentGrid.map(row => [...row]));
+
+          setCurrentStep(step);
+
+          await sleep(500);
+      }
+  };
+
   const loadExample = () => {
 
     const example = [
@@ -92,7 +126,7 @@ function App() {
   
         <div className="buttons">
   
-          <button onClick={() => console.log("Résoudre")}>
+          <button onClick={solve}>
             Résoudre
           </button>
   
