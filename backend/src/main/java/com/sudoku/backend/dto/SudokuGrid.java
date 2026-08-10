@@ -7,6 +7,13 @@ public class SudokuGrid {
     int[][] grid;
     List<Cell> notes;
     List<SolveStep> steps;
+    List<Cell> removedFromNotes;
+    public List<Cell> getRemovedFromNotes() {
+        return removedFromNotes;
+    }
+    public void setRemovedFromNotes(List<Cell> removedFromNotes) {
+        this.removedFromNotes = removedFromNotes;
+    }
     public List<SolveStep> getSteps() {
         return steps;
     }

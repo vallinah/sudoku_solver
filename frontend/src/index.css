@@ -202,3 +202,16 @@ button {
 button:hover {
   opacity: 0.85;
 }
+
+.given-cell {
+  color: black;
+  font-weight: bold;
+}
+
+.solved-cell {
+  color: blue;
+}
+
+.current-step {
+  background-color: #fff3cd;
+}

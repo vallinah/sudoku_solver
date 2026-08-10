@@ -168,6 +168,10 @@ public class BacktrackingSolver {
                 if(changeDetected){
                     solve(sudokuGrid);
                 }
+                changeDetected = checkBlockCandidate(sudokuGrid);
+                if(changeDetected){
+                    solve(sudokuGrid);
+                }
             }
         }
     }
@@ -218,6 +222,7 @@ public class BacktrackingSolver {
         }
         sudokuGrid.setNotes(cells);
         sudokuGrid.setSteps(new ArrayList<>());
+        sudokuGrid.setRemovedFromNotes(new ArrayList<>());
     }
 
     public void annotedBlocks(SudokuGrid sudokuGrid, int block, int number) {
@@ -234,7 +239,7 @@ public class BacktrackingSolver {
             for (int col = startCol; col < startCol + 3; col++) {
                 // System.out.println("[row]:" + row+ "[col]:" + col);
                 // System.out.println("sudokuGrid.getGrid()[row]" +sudokuGrid.getGrid()[row][col]);
-                if (sudokuGrid.getGrid()[row][col] == 0 && verifiedCol(sudokuGrid, col, number) && verifiedRow(sudokuGrid, row, number)) {
+                if (verifiedRemovedNote(sudokuGrid, row, col, number) &&sudokuGrid.getGrid()[row][col] == 0 && verifiedCol(sudokuGrid, col, number) && verifiedRow(sudokuGrid, row, number)) {
                     if (sudokuGrid.getCell(row, col) != null) {
                         sudokuGrid.getCell(row, col).addCandidate(number);
                     }else{
@@ -275,6 +280,155 @@ public class BacktrackingSolver {
         }
         return  false;
     
+    }
+
+    public boolean checkBlockCandidate(SudokuGrid sudokuGrid) {
+
+        for (int blockRow = 0; blockRow < 9; blockRow += 3) {
+            for (int blockCol = 0; blockCol < 9; blockCol += 3) {
+    
+                if (checkPointingCandidate(sudokuGrid, blockRow, blockCol)) {
+                    return true;
+                }
+            }
+        }
+    
+        return false;
+    }
+
+    private boolean checkPointingCandidate(SudokuGrid sudokuGrid, int startRow, int startCol) {
+
+        Map<Integer, List<Cell>> positions = new HashMap<>();
+    
+        // récupérer les positions des candidats dans le bloc
+        for (Cell cell : sudokuGrid.getNotes()) {
+    
+            if (cell.getRow() >= startRow && cell.getRow() < startRow + 3
+                    && cell.getCol() >= startCol && cell.getCol() < startCol + 3) {
+    
+                for (Integer number : cell.getCandidates()) {
+    
+                    positions
+                        .computeIfAbsent(number, k -> new ArrayList<>())
+                        .add(cell);
+                }
+            }
+        }
+    
+    
+        // analyser chaque candidat
+        for (Integer number : positions.keySet()) {
+    
+            List<Cell> cells = positions.get(number);
+    
+    
+            // Le candidat apparaît seulement sur une ligne du bloc
+            int row = cells.get(0).getRow();
+    
+            boolean sameRow = true;
+    
+            for (Cell cell : cells) {
+                if (cell.getRow() != row) {
+                    sameRow = false;
+                    break;
+                }
+            }
+    
+    
+            if (sameRow) {
+                if(removeFromRow(sudokuGrid, number, row, startCol)) {
+                    return true;
+                }
+            }
+    
+    
+            // Le candidat apparaît seulement sur une colonne du bloc
+            int col = cells.get(0).getCol();
+    
+            boolean sameCol = true;
+    
+            for (Cell cell : cells) {
+                if (cell.getCol() != col) {
+                    sameCol = false;
+                    break;
+                }
+            }
+    
+    
+            if (sameCol) {
+                if(removeFromColumn(sudokuGrid, number, col, startRow)) {
+                    return true;
+                }
+            }
+        }
+    
+    
+        return false;
+    }
+
+    private boolean removeFromRow(SudokuGrid sudokuGrid, int number, int row, int blockStartCol) {
+
+        boolean changed = false;
+    
+        for (Cell cell : sudokuGrid.getNotes()) {
+    
+            if(cell.getRow() == row
+                && (cell.getCol() < blockStartCol 
+                || cell.getCol() >= blockStartCol + 3)) {
+    
+    
+                if(cell.hasCandidate(number)) {
+    
+                    cell.removeCandidate(number);
+                    changed = true;
+                    sudokuGrid.getRemovedFromNotes().add(new Cell(cell.getRow(), cell.getCol()));
+    
+                    // System.out.println(
+                    //     "Suppression candidat " + number +
+                    //     " en (" + row + "," + cell.getCol() + ")"
+                    // );
+                }
+            }
+        }
+    
+        return changed;
+    }
+
+    private boolean removeFromColumn(SudokuGrid sudokuGrid, int number, int col, int blockStartRow) {
+
+        boolean changed = false;
+    
+        for (Cell cell : sudokuGrid.getNotes()) {
+    
+            if(cell.getCol() == col
+                && (cell.getRow() < blockStartRow 
+                || cell.getRow() >= blockStartRow + 3)) {
+    
+    
+                if(cell.hasCandidate(number)) {
+    
+                    cell.removeCandidate(number);
+                    changed = true;
+                    sudokuGrid.getRemovedFromNotes().add(new Cell(cell.getRow(), cell.getCol()));
+    
+                    System.out.println(
+                        "Suppression candidat " + number +
+                        " en (" + cell.getRow() + "," + col + ")"
+                    );
+                }
+            }
+        }
+    
+        return changed;
+    }
+
+    public boolean  verifiedRemovedNote(SudokuGrid sudokuGrid, int row, int col, int number){
+        for(Cell cell : sudokuGrid.getRemovedFromNotes()){
+            if (cell.getRow() == row && cell.getCol() == col && cell.hasCandidate(number)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public boolean  verifiedRow(SudokuGrid sudokuGrid, int row, int number){

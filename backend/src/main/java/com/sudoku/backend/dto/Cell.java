@@ -42,6 +42,9 @@ public class Cell {
     public boolean hasCandidate(int number) {
         return candidates.contains(number);
     }
+    public boolean removeCandidate(int number) {
+        return candidates.remove(number);
+    }
     @Override
     public String toString() {
         return "Cell [row=" + row + ", col=" + col + ", candidates=" + candidates + "]";

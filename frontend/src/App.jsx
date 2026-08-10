@@ -1,75 +1,83 @@
 import { useState } from "react";
 
 function App() {
+  const emptyGrid = () =>
+    Array(9)
+      .fill(null)
+      .map(() => Array(9).fill(0));
 
-  const [grid, setGrid] = useState(
-    Array(9).fill(null).map(() => Array(9).fill(0))
-  );
-
+  const [grid, setGrid] = useState(emptyGrid());
+  const [initialGrid, setInitialGrid] = useState(emptyGrid());
   const [currentStep, setCurrentStep] = useState(null);
 
   const handleChange = (rowIndex, colIndex, value) => {
-
     // Autoriser seulement vide ou chiffre 1-9
     if (value !== "" && !/^[1-9]$/.test(value)) {
       return;
     }
-  
-    setGrid(previousGrid => {
-  
-      const newGrid = previousGrid.map(row => [...row]);
-  
+
+    setGrid((previousGrid) => {
+      const newGrid = previousGrid.map((row) => [...row]);
+
       newGrid[rowIndex][colIndex] =
         value === "" ? 0 : Number(value);
-  
+
       return newGrid;
     });
   };
 
   const resetGrid = () => {
-    setGrid(
-      Array(9)
-        .fill(null)
-        .map(() => Array(9).fill(0))
-    );
+    const newGrid = emptyGrid();
+
+    setGrid(newGrid);
+    setInitialGrid(newGrid);
+    setCurrentStep(null);
   };
 
   const solve = async () => {
-    const response = await fetch("http://localhost:8080/api/sudoku/solve", {
+    // Sauvegarder la grille AVANT la résolution
+    const startingGrid = grid.map((row) => [...row]);
+
+    setInitialGrid(startingGrid);
+
+    const response = await fetch(
+      "http://localhost:8080/api/sudoku/solve",
+      {
         method: "POST",
         headers: {
-            "Content-Type": "application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-            grid
+          grid: startingGrid,
         }),
-    });
+      }
+    );
 
     const data = await response.json();
 
-    playSteps(data.steps);
+    playSteps(data.steps, startingGrid);
   };
 
-  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const sleep = (ms) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
-  const playSteps = async (steps) => {
+  const playSteps = async (steps, startingGrid) => {
+    let currentGrid = startingGrid.map((row) => [...row]);
 
-      let currentGrid = grid.map(row => [...row]);
+    for (const step of steps) {
+      currentGrid[step.row][step.col] = step.value;
 
-      for (const step of steps) {
+      setGrid(currentGrid.map((row) => [...row]));
 
-          currentGrid[step.row][step.col] = step.value;
+      setCurrentStep(step);
 
-          setGrid(currentGrid.map(row => [...row]));
+      await sleep(500);
+    }
 
-          setCurrentStep(step);
-
-          await sleep(500);
-      }
+    setCurrentStep(null);
   };
 
   const loadExample = () => {
-
     const example = [
       [5,3,0,0,7,0,0,0,0],
       [6,0,0,1,9,5,0,0,0],
@@ -108,28 +116,43 @@ function App() {
       [4,1,0,0,9,6,0,0,0]
      ];
 
-    
-  
-    setGrid(middle);
+    const newGrid = middle.map((row) => [...row]);
+
+    setGrid(newGrid);
+    setInitialGrid(newGrid);
+    setCurrentStep(null);
   };
 
   console.log(grid);
 
   return (
-    <div className="container">
-  
+    <div>
       <h1>Sudoku Solver</h1>
-  
+
       <div className="sudoku-container">
-  
         <div className="sudoku-grid">
-          {
-            grid.map((row, rowIndex) =>
-              row.map((cell, colIndex) => (
+          {grid.map((row, rowIndex) =>
+            row.map((cell, colIndex) => {
+              const isGiven =
+                initialGrid[rowIndex][colIndex] !== 0;
+
+              const isSolved =
+                initialGrid[rowIndex][colIndex] === 0 &&
+                cell !== 0;
+
+              const isCurrentStep =
+                currentStep &&
+                currentStep.row === rowIndex &&
+                currentStep.col === colIndex;
+
+              return (
                 <input
                   key={`${rowIndex}-${colIndex}`}
                   className={`
                     cell
+                    ${isGiven ? "given-cell" : ""}
+                    ${isSolved ? "solved-cell" : ""}
+                    ${isCurrentStep ? "current-step" : ""}
                     ${colIndex % 3 === 0 ? "left-border" : ""}
                     ${rowIndex % 3 === 0 ? "top-border" : ""}
                     ${colIndex === 8 ? "right-border" : ""}
@@ -145,32 +168,27 @@ function App() {
                   }
                   maxLength="1"
                 />
-              ))
-            )
-          }
+              );
+            })
+          )}
         </div>
-  
-  
+
         <div className="buttons">
-  
           <button onClick={solve}>
             Résoudre
           </button>
-  
+
           <button onClick={resetGrid}>
             Réinitialiser
           </button>
-  
+
           <button onClick={loadExample}>
             Charger un exemple
           </button>
-  
         </div>
-  
       </div>
-  
     </div>
-  )
+  );
 }
 
 export default App;
