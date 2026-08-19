@@ -8,6 +8,7 @@ public class SudokuGrid {
     List<Cell> notes;
     List<SolveStep> steps;
     List<Cell> removedFromNotes;
+    String method;
     public List<Cell> getRemovedFromNotes() {
         return removedFromNotes;
     }
@@ -45,5 +46,11 @@ public class SudokuGrid {
     @Override
     public String toString() {
         return "SudokuGrid [grid=" + Arrays.toString(grid) + ", notes=" + notes.toString() + "]";
+    }
+    public String getMethod() {
+        return method;
+    }
+    public void setMethod(String method) {
+        this.method = method;
     }
 }

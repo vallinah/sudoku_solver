@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import com.sudoku.backend.dto.Block;
 import com.sudoku.backend.dto.Cell;
@@ -90,7 +89,7 @@ public class SudokuSolver {
     
         for (int row = startRow; row < startRow + 3; row++) {
             for (int col = startCol; col < startCol + 3; col++) {
-                if (verifiedRemovedNote(sudokuGrid, row, col, number) && sudokuGrid.getGrid()[row][col] == 0 && verifiedColumn(sudokuGrid, col, number) && verifiedRow(sudokuGrid, row, number)) {
+                if (verifiedRemovedNote(sudokuGrid, row, col, number) && sudokuGrid.getGrid()[row][col] == 0 && verifiedColumn(sudokuGrid, col, number) && verifiedRow(sudokuGrid, row, number) && !theBlockHasTheNumber(sudokuGrid, row, col, number)) {
                     if (sudokuGrid.getCell(row, col) != null) {
                         sudokuGrid.getCell(row, col).addCandidate(number);
                     }else{
@@ -137,15 +136,13 @@ public class SudokuSolver {
         boolean change = false;
 
         int blockRow = blockNumber / 3;
-        int blockCol = blockNumber % 3;
     
         int startRow = blockRow * 3;
-        int startCol = blockCol * 3;
 
         List<Cell> cellToCheck = new ArrayList<>();
 
         for(Cell cell : sudokuGrid.getNotes()){
-            if (cell.getRow() >= startRow && cell.getRow() < startRow + 3 && cell.getCol() >= startCol && cell.getCol() < startCol + 3 && cell.hasCandidate(number)) {
+            if (isInTheBlock(blockNumber, cell.getRow(), cell.getCol()) && cell.hasCandidate(number)) {
                 cellToCheck.add(cell);
             }
         }
@@ -158,8 +155,9 @@ public class SudokuSolver {
                 }
             }
             if(nb == cellToCheck.size()){
-                change = removeFromRowNotInTheSameBlock(sudokuGrid, number, row, blockNumber);
-                checkIfMatchForNumberAnnoted(sudokuGrid, blockNumber, number);
+                if(removeFromRowNotInTheSameBlock(sudokuGrid, number, row, blockNumber) || checkIfMatchForNumberAnnoted(sudokuGrid, number)){
+                    change = true;
+                }
             }
         }
     
@@ -192,41 +190,36 @@ public class SudokuSolver {
                 }
             }
             if(nb == cellToCheck.size()){
-                change = removeFromColumnNotInTheSameBlock(sudokuGrid, number, col, blockNumber);
-                checkIfMatchForNumberAnnoted(sudokuGrid, blockNumber, number);
+                if(removeFromColumnNotInTheSameBlock(sudokuGrid, number, col, blockNumber) || checkIfMatchForNumberAnnoted(sudokuGrid, number)){
+                    change = true;
+                }
             }
         }
     
         return change;
     }
 
-    public boolean checkIfMatchForNumberAnnoted(SudokuGrid sudokuGrid, int blockNumber, int number){
+    public boolean checkIfMatchForNumberAnnoted(SudokuGrid sudokuGrid, int number){
 
         boolean changed = false;
-        for (int i = 0; i < 10; i++) {
-            
-            int blockRow = i / 3;
-            int blockCol = i % 3;
-        
-            int startRow = blockRow * 3;
-            int startCol = blockCol * 3;
+        for (int i = 0; i < 9; i++) {
     
             List<Cell> cellToCheck = new ArrayList<>();
     
             for(Cell cell : sudokuGrid.getNotes()){
-                if (cell.getRow() >= startRow && cell.getRow() < startRow + 3 && cell.getCol() >= startCol && cell.getCol() < startCol + 3 && cell.hasCandidate(number)) {
+                if (isInTheBlock(i, cell.getRow(), cell.getCol()) && cell.hasCandidate(number)) {
                     cellToCheck.add(cell);
                 }
             }
             
             
-            if (cellToCheck.size() == 1 && verifiedRow(sudokuGrid, cellToCheck.get(0).getRow(), number) && verifiedColumn(sudokuGrid, cellToCheck.get(0).getCol(), number)) {
+            if (cellToCheck.size() == 1 && verifiedRow(sudokuGrid, cellToCheck.get(0).getRow(), number) && verifiedColumn(sudokuGrid, cellToCheck.get(0).getCol(), number) && !theBlockHasTheNumber(sudokuGrid, cellToCheck.get(0).getRow(), cellToCheck.get(0).getCol(), number)) {
                 int[][] grid = sudokuGrid.getGrid();
                 grid[cellToCheck.get(0).getRow()][cellToCheck.get(0).getCol()]= number;
                 sudokuGrid.setGrid(grid);  
                 sudokuGrid.getNotes().remove(cellToCheck.get(0));
                 List<SolveStep> steps = sudokuGrid.getSteps();
-                steps.add(new SolveStep(cellToCheck.get(0).getRow(), cellToCheck.get(0).getCol(), number));
+                steps.add(new SolveStep(cellToCheck.get(0).getRow(), cellToCheck.get(0).getCol(), number, sudokuGrid.getMethod()));
                 changed = true;
             }        
         }
@@ -249,13 +242,13 @@ public class SudokuSolver {
 
         for (Integer number : count.keySet()) {
 
-            if (count.get(number) == 1 && verifiedRow(sudokuGrid, positions.get(number).getRow(), number) && verifiedColumn(sudokuGrid, positions.get(number).getCol(), number)) {
+            if (count.get(number) == 1 && verifiedRow(sudokuGrid, positions.get(number).getRow(), number) && verifiedColumn(sudokuGrid, positions.get(number).getCol(), number) && !theBlockHasTheNumber(sudokuGrid, positions.get(number).getRow(), positions.get(number).getCol(), number)) {
                 int[][] grid = sudokuGrid.getGrid();
                 grid[positions.get(number).getRow()][positions.get(number).getCol()]= number;
                 sudokuGrid.setGrid(grid);  
                 sudokuGrid.getNotes().remove(positions.get(number));
                 List<SolveStep> steps = sudokuGrid.getSteps();
-                steps.add(new SolveStep(positions.get(number).getRow(), positions.get(number).getCol(), number));
+                steps.add(new SolveStep(positions.get(number).getRow(), positions.get(number).getCol(), number, sudokuGrid.getMethod()));
                 return true;             
             }
         }
@@ -270,7 +263,6 @@ public class SudokuSolver {
     
         int startRow = blockRow * 3;
         int startCol = blockCol * 3;
-        // System.out.println("for"+ blockNumber+"startRow:"+startRow+"startCol:"+startCol);
 
         if (row >= startRow && row < startRow + 3 && col >= startCol && col < startCol + 3) {
             return true;
@@ -310,13 +302,13 @@ public class SudokuSolver {
                     break;
                 }
             }
-            if(hasTheNumber == false && verifiedRow(sudokuGrid, row, number) && verifiedColumn(sudokuGrid, col, number)){
+            if(hasTheNumber == false && verifiedRow(sudokuGrid, row, number) && verifiedColumn(sudokuGrid, col, number) && !theBlockHasTheNumber(sudokuGrid, row, col, number)){
                 int[][] grid = sudokuGrid.getGrid();
                 grid[row][col]= number;
                 sudokuGrid.setGrid(grid);
                 System.out.println("addingMissingNumber: ["+row+"]["+col+"]="+number);
                 List<SolveStep> steps = sudokuGrid.getSteps();
-                steps.add(new SolveStep(row, col, number));
+                steps.add(new SolveStep(row, col, number, sudokuGrid.getMethod()));
                 return true; 
             }
         }
@@ -332,13 +324,13 @@ public class SudokuSolver {
                     break;
                 }
             }
-            if(hasTheNumber == false && verifiedRow(sudokuGrid, row, number) && verifiedColumn(sudokuGrid, col, number)){
+            if(hasTheNumber == false && verifiedRow(sudokuGrid, row, number) && verifiedColumn(sudokuGrid, col, number) && !theBlockHasTheNumber(sudokuGrid, row, col, number)){
                 int[][] grid = sudokuGrid.getGrid();
                 grid[row][col]= number;
                 sudokuGrid.setGrid(grid);
                 System.out.println("addingMissingNumberInColumn: ["+row+"]["+col+"]="+number);
                 List<SolveStep> steps = sudokuGrid.getSteps();
-                steps.add(new SolveStep(row, col, number));
+                steps.add(new SolveStep(row, col, number, sudokuGrid.getMethod()));
                 return true; 
             }
         }
@@ -432,6 +424,308 @@ public class SudokuSolver {
         return false;
     }
 
+    public int getBlockNumber(int row, int col) {
+        return (row / 3) * 3 + (col / 3);
+    }
+
+    public boolean theRowHasTheNumber(SudokuGrid sudokuGrid, int row, int number){
+        for (int col = 0; col < 9; col++) {
+            if (sudokuGrid.getGrid()[row][col]==number) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean theColumnHasTheNumber(SudokuGrid sudokuGrid, int col, int number){
+        for (int row = 0; row < 9; row++) {
+            if (sudokuGrid.getGrid()[row][col]==number) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean theBlockHasTheNumber(SudokuGrid sudokuGrid, int row, int col, int number){
+        int blockNumber = getBlockNumber(row, col);
+        int blockRow = blockNumber / 3;
+        int blockCol = blockNumber % 3;
+    
+        int startRow = blockRow * 3;
+        int startCol = blockCol * 3;
+        for (int i = startRow; i < startRow + 3; i++) {
+            for (int j = startCol; j < startCol + 3; j++) {
+                if (sudokuGrid.getGrid()[i][j] == number) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean annotedEmptyRow(SudokuGrid sudokuGrid){
+        boolean changed = false;
+        sudokuGrid.setNotes(new ArrayList<>());
+        for (int i = 0; i < 9; i++) {
+            for (int number = 1; number < 10; number++) {
+                if (!theRowHasTheNumber(sudokuGrid, i, number)) {
+                    for (int j = 0; j < 9; j++) {
+                        if (sudokuGrid.getGrid()[i][j] == 0 && !theBlockHasTheNumber(sudokuGrid, i, j, number) && verifiedColumn(sudokuGrid, j, number)) {
+                            if (sudokuGrid.getCell(i, j) != null) {
+                                sudokuGrid.getCell(i, j).addCandidate(number);
+                            }else{
+                                Cell cell = new Cell(i, j);
+                                cell.addCandidate(number);
+                                sudokuGrid.getNotes().add(cell);
+                            }
+                        }
+                    }
+                }
+            }
+            if (checkIfMatchForNumberAnnotedInRow(sudokuGrid, i) || checkIfSupposedMatchForNumberAnnotedInRow(sudokuGrid, i)) {
+                System.out.println("one match detected in row");
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    public boolean annotedEmptyColumn(SudokuGrid sudokuGrid){
+        boolean changed = false;
+        sudokuGrid.setNotes(new ArrayList<>());
+        for (int i = 0; i < 9; i++) {
+            for (int number = 1; number < 10; number++) {
+                if (!theColumnHasTheNumber(sudokuGrid, i, number)) {
+                    for (int j = 0; j < 9; j++) {
+                        if (sudokuGrid.getGrid()[j][i] == 0 && !theBlockHasTheNumber(sudokuGrid, j, i, number) && verifiedRow(sudokuGrid, j, number)) {
+                            if (sudokuGrid.getCell(j, i) != null) {
+                                sudokuGrid.getCell(j, i).addCandidate(number);
+                            }else{
+                                Cell cell = new Cell(j, i);
+                                cell.addCandidate(number);
+                                sudokuGrid.getNotes().add(cell);
+                            }
+                        }
+                    }
+                }
+            }
+            if (checkIfMatchForNumberAnnotedInColumn(sudokuGrid, i) || checkIfSupposedMatchForNumberAnnotedInColumn(sudokuGrid, i)) {
+                System.out.println("one match detected in col");
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    public boolean annotedEmptyBlock(SudokuGrid sudokuGrid){
+
+        boolean changed = false;
+        // generateCell(sudokuGrid);
+        sudokuGrid.setNotes(new ArrayList<>());
+        for(int blockNumber = 0; blockNumber<9; blockNumber++){
+
+            for(int number = 1; number < 10; number++){
+                int blockRow = blockNumber / 3;
+                int blockCol = blockNumber % 3;
+            
+                int startRow = blockRow * 3;
+                int startCol = blockCol * 3;
+            
+                for (int row = startRow; row < startRow + 3; row++) {
+                    for (int col = startCol; col < startCol + 3; col++) {
+                        if (verifiedRemovedNote(sudokuGrid, row, col, number) && sudokuGrid.getGrid()[row][col] == 0 && verifiedColumn(sudokuGrid, col, number) && verifiedRow(sudokuGrid, row, number) && !theBlockHasTheNumber(sudokuGrid, row, col, number)) {
+                            if (sudokuGrid.getCell(row, col) != null) {
+                                sudokuGrid.getCell(row, col).addCandidate(number);
+                            }else{
+                                Cell cell = new Cell(row, col);
+                                cell.addCandidate(number);
+                                sudokuGrid.getNotes().add(cell);
+                            }
+                        }
+                    }
+                }
+                
+                
+            }
+            if(checkIfSupposedMatchForNumberAnnotedInBlock(sudokuGrid, blockNumber)){
+                changed = true;
+            }
+        }
+        return changed;
+
+    }
+
+    public boolean checkIfMatchForNumberAnnotedInRow(SudokuGrid sudokuGrid, int row){
+
+        boolean changed = false;
+        for (int number = 0; number < 10; number++) {
+    
+            List<Cell> cellToCheck = new ArrayList<>();
+    
+            for(Cell cell : sudokuGrid.getNotes()){
+                if (cell.getRow() == row && cell.hasCandidate(number)) {
+                    cellToCheck.add(cell);
+                }
+            }
+            
+            
+            if (cellToCheck.size() == 1 && verifiedRow(sudokuGrid, cellToCheck.get(0).getRow(), number) && verifiedColumn(sudokuGrid, cellToCheck.get(0).getCol(), number) && !theBlockHasTheNumber(sudokuGrid, cellToCheck.get(0).getRow(), cellToCheck.get(0).getCol(), number)) {
+                int[][] grid = sudokuGrid.getGrid();
+                grid[cellToCheck.get(0).getRow()][cellToCheck.get(0).getCol()]= number;
+                sudokuGrid.setGrid(grid);  
+                sudokuGrid.getNotes().remove(cellToCheck.get(0));
+                List<SolveStep> steps = sudokuGrid.getSteps();
+                steps.add(new SolveStep(cellToCheck.get(0).getRow(), cellToCheck.get(0).getCol(), number, sudokuGrid.getMethod()));
+                changed = true;
+            }        
+        }
+    
+        return changed;
+    }
+
+    public int countEmptyCaseInARow(SudokuGrid sudokuGrid, int row){
+        int nb = 0;
+        for (int column = 0; column < 9; column++) {
+            if(sudokuGrid.getGrid()[row][column] == 0){
+                nb++;
+            }
+        }
+        return nb;
+    }
+
+    public int countEmptyCaseInColumn(SudokuGrid sudokuGrid, int column){
+        int nb = 0;
+        for (int row = 0; row < 9; row++) {
+            if(sudokuGrid.getGrid()[row][column] == 0){
+                nb ++;
+            }
+        }
+        return nb;
+    }
+
+    public boolean checkIfSupposedMatchForNumberAnnotedInRow(SudokuGrid sudokuGrid, int row){
+
+        boolean changed = false;
+        for (int number = 0; number < 10; number++) {
+    
+            List<Cell> cellToCheck = new ArrayList<>();
+    
+            for(Cell cell : sudokuGrid.getNotes()){
+                if (cell.getRow() == row && cell.hasCandidate(number)) {
+                    cellToCheck.add(cell);
+                }
+            }
+
+            for(Cell ctc : cellToCheck){
+                if (ctc.getCandidates().size() == 1 && verifiedRow(sudokuGrid, ctc.getRow(), number) && verifiedColumn(sudokuGrid, ctc.getCol(), number)  && !theBlockHasTheNumber(sudokuGrid, ctc.getRow(), ctc.getCol(), number)) {
+                    int[][] grid = sudokuGrid.getGrid();
+                    grid[ctc.getRow()][ctc.getCol()]= number;
+                    sudokuGrid.setGrid(grid);  
+                    sudokuGrid.getNotes().remove(ctc);
+                    List<SolveStep> steps = sudokuGrid.getSteps();
+                    steps.add(new SolveStep(ctc.getRow(), ctc.getCol(), number, sudokuGrid.getMethod()));
+                    changed = true;
+                }      
+            }
+            
+            
+        }
+    
+        return changed;
+    }
+
+    public boolean checkIfSupposedMatchForNumberAnnotedInBlock(SudokuGrid sudokuGrid, int blockNumber){
+
+        boolean changed = false;
+        for (int number = 0; number < 10; number++) {
+    
+            List<Cell> cellToCheck = new ArrayList<>();
+    
+            for(Cell cell : sudokuGrid.getNotes()){
+                if (isInTheBlock(blockNumber, cell.getRow(), cell.getCol()) && cell.hasCandidate(number)) {
+                    cellToCheck.add(cell);
+                }
+            }
+
+            for(Cell ctc : cellToCheck){
+                if (ctc.getCandidates().size() == 1 && verifiedRow(sudokuGrid, ctc.getRow(), number) && verifiedColumn(sudokuGrid, ctc.getCol(), number) && !theBlockHasTheNumber(sudokuGrid, ctc.getRow(), ctc.getCol(), number)) {
+                    int[][] grid = sudokuGrid.getGrid();
+                    grid[ctc.getRow()][ctc.getCol()]= number;
+                    sudokuGrid.setGrid(grid);  
+                    sudokuGrid.getNotes().remove(ctc);
+                    List<SolveStep> steps = sudokuGrid.getSteps();
+                    steps.add(new SolveStep(ctc.getRow(), ctc.getCol(), number, sudokuGrid.getMethod()));
+                    changed = true;
+                }      
+            }
+            
+            
+        }
+    
+        return changed;
+    }
+
+    
+
+    public boolean checkIfMatchForNumberAnnotedInColumn(SudokuGrid sudokuGrid, int col){
+
+        boolean changed = false;
+        for (int number = 0; number < 10; number++) {
+    
+            List<Cell> cellToCheck = new ArrayList<>();
+    
+            for(Cell cell : sudokuGrid.getNotes()){
+                if (cell.getCol() == col && cell.hasCandidate(number)) {
+                    cellToCheck.add(cell);
+                }
+            }
+            
+            
+            if (cellToCheck.size() == 1 && verifiedRow(sudokuGrid, cellToCheck.get(0).getRow(), number) && verifiedColumn(sudokuGrid, cellToCheck.get(0).getCol(), number) && !theBlockHasTheNumber(sudokuGrid, cellToCheck.get(0).getRow(), cellToCheck.get(0).getCol(), number)) {
+                int[][] grid = sudokuGrid.getGrid();
+                grid[cellToCheck.get(0).getRow()][cellToCheck.get(0).getCol()]= number;
+                sudokuGrid.setGrid(grid);  
+                sudokuGrid.getNotes().remove(cellToCheck.get(0));
+                List<SolveStep> steps = sudokuGrid.getSteps();
+                steps.add(new SolveStep(cellToCheck.get(0).getRow(), cellToCheck.get(0).getCol(), number, sudokuGrid.getMethod()));
+                changed = true;
+            }        
+        }
+    
+        return changed;
+    }
+
+    public boolean checkIfSupposedMatchForNumberAnnotedInColumn(SudokuGrid sudokuGrid, int col){
+
+        boolean changed = false;
+        for (int number = 0; number < 10; number++) {
+    
+            List<Cell> cellToCheck = new ArrayList<>();
+    
+            for(Cell cell : sudokuGrid.getNotes()){
+                if (cell.getCol() == col && cell.hasCandidate(number)) {
+                    cellToCheck.add(cell);
+                }
+            }
+            
+            for(Cell ctc : cellToCheck){
+                if (ctc.getCandidates().size() == 1 && verifiedRow(sudokuGrid, ctc.getRow(), number) && verifiedColumn(sudokuGrid, ctc.getCol(), number) && !theBlockHasTheNumber(sudokuGrid, ctc.getRow(), ctc.getCol(), number)) {
+                    int[][] grid = sudokuGrid.getGrid();
+                    grid[ctc.getRow()][ctc.getCol()]= number;
+                    sudokuGrid.setGrid(grid);  
+                    sudokuGrid.getNotes().remove(ctc);
+                    List<SolveStep> steps = sudokuGrid.getSteps();
+                    steps.add(new SolveStep(ctc.getRow(), ctc.getCol(), number, sudokuGrid.getMethod()));
+                    changed = true;
+                }     
+            }
+            
+            
+        }
+    
+        return changed;
+    }
+
     public void printGrid(SudokuGrid sudokuGrid) {
 
         System.out.println("========== GRID ==========");
@@ -454,6 +748,7 @@ public class SudokuSolver {
         System.out.println("Solving....");
         System.out.println("Solving by solveByElimination....");
         boolean changeDetected = false;
+        sudokuGrid.setMethod("Annotation des blocs vides par nombre");
         for (int number = 1; number < 10; number++) {
             List<Block> blocks = getEmptyBlocksOfOneNumber(sudokuGrid, number);
             for (Block block : blocks) {
@@ -469,18 +764,41 @@ public class SudokuSolver {
 
         changeDetected = false;
 
+        sudokuGrid.setMethod("Suppression des annotations par supposition");
+
         for (int number = 1; number < 10; number++) {
             List<Block> blocks = getEmptyBlocksOfOneNumber(sudokuGrid, number);
             annotedAllEmptyBlockOfNumber(sudokuGrid, blocks, number);
             for (Block block : blocks) {
                 if(checkSameRowBlockOfNumberAnnoted(sudokuGrid, block.getNumber(), number) || checkSameColBlockOfNumberAnnoted(sudokuGrid, block.getNumber(), number)){
-                    changeDetected = checkIfMatchForNumberAnnoted(sudokuGrid, block.getNumber(), number);
+                    changeDetected = checkIfMatchForNumberAnnoted(sudokuGrid, number);
                     if(changeDetected){
                         solve(sudokuGrid);
                     }
                 }
             }
         }
+
+        sudokuGrid.setMethod("Annotation des lignes vides");
+
+        if (annotedEmptyRow(sudokuGrid) || annotedEmptyColumn(sudokuGrid) || annotedEmptyBlock(sudokuGrid)) {
+            solve(sudokuGrid);
+        }
+
+        sudokuGrid.setMethod("Annotation des colonnes vides");
+
+        if (annotedEmptyColumn(sudokuGrid)) {
+            solve(sudokuGrid);
+        }
+
+        sudokuGrid.setMethod("Annotation des blocs vides");
+
+        if (annotedEmptyBlock(sudokuGrid)) {
+            solve(sudokuGrid);
+        }
+
+        sudokuGrid.setMethod("Annotation des cases vides");
+
         if (checkfEmptyOfOneNumber(sudokuGrid)) {
             solve(sudokuGrid);
         }

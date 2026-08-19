@@ -37,7 +37,7 @@ public class SolveStep {
 
     @Override
     public String toString() {
-        return "SolveStep [row=" + row + ", col=" + col + ", value=" + value + "]";
+        return "SolveStep [row=" + row + ", col=" + col + ", value=" + value + ", step=" + method +"]";
     }
 
 
